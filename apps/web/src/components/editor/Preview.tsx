@@ -2650,8 +2650,21 @@ export const Preview: React.FC = () => {
 
       let hasRenderedFrame = false;
       let shouldClearCanvas = true;
-      const hadBackground = Boolean(lastGoodFrameRef.current);
-      if (lastGoodFrameRef.current) {
+      // Lumen: the last good frame only bridges async video decode. Painting it
+      // under a still image (contain fit) or into a gap with no clip shows the
+      // previous clip where the project background belongs.
+      const activeVisualClips = videoTracks.flatMap((track) =>
+        track.clips.filter(
+          (clip) =>
+            time >= clip.startTime && time < clip.startTime + clip.duration,
+        ),
+      );
+      const awaitingVideoDecode = activeVisualClips.some(
+        (clip) => getMediaItem(clip.mediaId)?.type === "video",
+      );
+      const hadBackground =
+        Boolean(lastGoodFrameRef.current) && awaitingVideoDecode;
+      if (hadBackground && lastGoodFrameRef.current) {
         ctx.drawImage(
           lastGoodFrameRef.current,
           0,
@@ -3201,6 +3214,19 @@ export const Preview: React.FC = () => {
       if (hadBackground && hasActiveContent && offscreenCanvasRef.current) {
         mainCtx.clearRect(0, 0, canvas.width, canvas.height);
         mainCtx.drawImage(offscreenCanvasRef.current, 0, 0);
+        return true;
+      }
+
+      if (!hasActiveContent) {
+        // Lumen: a gap in the timeline is the project background, not the
+        // previous clip held on screen.
+        fillPreviewBackground(ctx, time, canvas.width, canvas.height);
+        mainCtx.clearRect(0, 0, canvas.width, canvas.height);
+        if (offscreenCanvasRef.current) {
+          mainCtx.drawImage(offscreenCanvasRef.current, 0, 0);
+        }
+        lastGoodFrameRef.current?.close();
+        lastGoodFrameRef.current = null;
         return true;
       }
 
