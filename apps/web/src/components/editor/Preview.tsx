@@ -6294,6 +6294,16 @@ export const Preview: React.FC = () => {
     renderFrameDirectly(playheadPosition);
   }, [previewInvalidateCounter, isPlaying, renderFrameDirectly, playheadPosition]);
 
+  // Lumen: editing the timeline while paused must repaint. Without this the
+  // canvas keeps the frame it drew last, so a deleted clip stays on screen
+  // until the playhead moves. Read through refs so a new renderFrameDirectly
+  // identity does not retrigger the effect on every render.
+  useEffect(() => {
+    if (isPlaying) return;
+    if (!canvasRef.current) return;
+    renderFrameDirectlyRef.current(playheadPositionRef.current);
+  }, [timelineTracks, isPlaying]);
+
   const selectedClipId = useMemo(() => {
     const clipSelection = selectedItems.find((item) => item.type === "clip");
     return clipSelection?.id || null;
