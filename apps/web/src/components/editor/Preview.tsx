@@ -5947,14 +5947,30 @@ export const Preview: React.FC = () => {
               lastGoodFrameRef.current?.close();
               lastGoodFrameRef.current = await createImageBitmap(offscreenCanvasRef.current!);
             } catch {}
-          } else if (lastGoodFrameRef.current) {
-            ctx.drawImage(
-              lastGoodFrameRef.current,
-              0,
-              0,
-              canvas.width,
-              canvas.height,
+          } else {
+            // Lumen: hold the previous frame only while a video clip is still
+            // decoding; a gap with no visual clip is the project background.
+            const awaitingVideoDecode = activeClips.some(
+              ({ clip }) => getMediaItem(clip.mediaId)?.type === "video",
             );
+            if (lastGoodFrameRef.current && awaitingVideoDecode) {
+              ctx.drawImage(
+                lastGoodFrameRef.current,
+                0,
+                0,
+                canvas.width,
+                canvas.height,
+              );
+            } else {
+              fillPreviewBackground(
+                ctx,
+                playheadPositionRef.current,
+                canvas.width,
+                canvas.height,
+              );
+              lastGoodFrameRef.current?.close();
+              lastGoodFrameRef.current = null;
+            }
 
             const activeSubtitles = getActiveSubtitles(
               allSubtitlesRef.current,
