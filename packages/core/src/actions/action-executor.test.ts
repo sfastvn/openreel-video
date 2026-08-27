@@ -1135,3 +1135,67 @@ describe("ActionExecutor project/registerGeneratedShader", () => {
     ).toEqual(["ai-example-abcd1234"]);
   });
 });
+
+describe("ActionExecutor track/add default position", () => {
+  async function addTrack(
+    executor: ActionExecutor,
+    project: Project,
+    trackType: string,
+    position?: number,
+  ) {
+    const result = await executor.execute(
+      {
+        id: `add-${trackType}-${position ?? "auto"}`,
+        type: "track/add",
+        params: position === undefined ? { trackType } : { trackType, position },
+        timestamp: 1,
+      } as Action,
+      project,
+    );
+    expect(result.success).toBe(true);
+  }
+
+  it("puts a new visual track on top of every existing track", async () => {
+    const executor = new ActionExecutor();
+    const project = makeProject();
+    await addTrack(executor, project, "video");
+    await addTrack(executor, project, "audio");
+    await addTrack(executor, project, "video");
+
+    expect(project.timeline.tracks.map((t) => t.type)).toEqual([
+      "video",
+      "video",
+      "audio",
+    ]);
+  });
+
+  it("puts a new audio track under the visual tracks but above older audio", async () => {
+    const executor = new ActionExecutor();
+    const project = makeProject();
+    await addTrack(executor, project, "video");
+    await addTrack(executor, project, "audio");
+    await addTrack(executor, project, "text");
+    await addTrack(executor, project, "audio");
+
+    expect(project.timeline.tracks.map((t) => t.type)).toEqual([
+      "text",
+      "video",
+      "audio",
+      "audio",
+    ]);
+  });
+
+  it("still honours an explicit position", async () => {
+    const executor = new ActionExecutor();
+    const project = makeProject();
+    await addTrack(executor, project, "video");
+    await addTrack(executor, project, "audio");
+    await addTrack(executor, project, "video", 2);
+
+    expect(project.timeline.tracks.map((t) => t.type)).toEqual([
+      "video",
+      "audio",
+      "video",
+    ]);
+  });
+});

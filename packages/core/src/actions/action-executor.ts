@@ -446,10 +446,18 @@ export class ActionExecutor {
           solo: false,
         };
 
+        // Lumen: a new visual track is the topmost layer (index 0) and audio
+        // sits under every visual track, matching how the timeline reads
+        // top-to-bottom. An explicit position always wins.
+        const visualTrackCount = timeline.tracks.filter(
+          (t: MutableTrack) => t.type !== "audio",
+        ).length;
         const position =
           params.position !== undefined
             ? params.position
-            : timeline.tracks.length;
+            : params.trackType === "audio"
+              ? visualTrackCount
+              : 0;
 
         timeline.tracks = [
           ...timeline.tracks.slice(0, position),
